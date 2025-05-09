@@ -9,6 +9,7 @@ import (
 	"net/smtp"
 	"encoding/json"
 	"io/ioutil"
+	"sync"
 )
 
 // Конфігурація SMTP для відправки сповіщень.
@@ -29,6 +30,8 @@ type Node struct {
 	ErrorCount  int
 	MaxErrors   int
 	AlertEmail  string
+	lastAlert   time.Time
+	alertLock   sync.Mutex
 }
 
 // Завантаження конфігурації SMTP з JSON-файлу.
@@ -82,8 +85,16 @@ func (n *Node) logInfo() {
 	fmt.Printf("[ІНФО] Вузол %s доступний.\n", n.Address)
 }
 
-// Відправка сповіщення про недоступність вузла.
+// Відправка сповіщення про недоступність вузла з перевіркою часу останнього сповіщення.
 func (n *Node) sendAlert(config *Config) {
+	n.alertLock.Lock()
+	defer n.alertLock.Unlock()
+
+	// Уникнення дублювання сповіщень протягом 10 хвилин
+	if time.Since(n.lastAlert) < 10*time.Minute {
+		return
+	}
+
 	msg := fmt.Sprintf("Від: %s\nДо: %s\nТема: [СПОВІЩЕННЯ] Вузол недоступний\n\nВузол %s недоступний протягом %d спроб. Будь ласка, перевірте підключення.", config.FromEmail, n.AlertEmail, n.Address, n.MaxErrors)
 
 	for i := 0; i < config.RetryCount; i++ {
@@ -98,6 +109,7 @@ func (n *Node) sendAlert(config *Config) {
 			time.Sleep(time.Duration(config.RetryDelay) * time.Second)
 		} else {
 			log.Printf("[СПОВІЩЕННЯ] Сповіщення відправлено для вузла %s.", n.Address)
+			n.lastAlert = time.Now()
 			break
 		}
 	}
