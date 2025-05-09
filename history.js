@@ -2,6 +2,7 @@
 const history = {};
 const MAX_HISTORY_ENTRIES = 100;
 const charts = {};
+const NODE_INACTIVITY_LIMIT = 2592000000; // 30 днів
 
 // Додає запис до історії вузла
 function addToHistory(node) {
@@ -30,6 +31,21 @@ function addToHistory(node) {
     // Оновлення графіка, якщо він відкритий
     if (charts[node.address]) {
         updateChart(node.address);
+    }
+
+    // Автоматичне видалення неактивних вузлів
+    cleanupInactiveNodes();
+}
+
+// Очищує вузли з нульовою активністю
+function cleanupInactiveNodes() {
+    const cutoff = Date.now() - NODE_INACTIVITY_LIMIT;
+    for (const address in history) {
+        const lastActivity = history[address].at(-1)?.time || 0;
+        if (lastActivity < cutoff) {
+            delete history[address];
+            console.log(`Вузол ${address} видалений через неактивність.`);
+        }
     }
 }
 
