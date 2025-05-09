@@ -54,6 +54,11 @@
         .status-indicator.available { color: green; font-weight: bold; }
         .status-indicator.unavailable { color: red; font-weight: bold; }
         .status-indicator.inactive { color: gray; font-weight: normal; }
+        .log-container { margin-top: 20px; padding: 15px; background-color: #f4f4f4; border-radius: 8px; max-height: 300px; overflow-y: auto; }
+        .log-entry { margin-bottom: 5px; padding: 10px; border-radius: 5px; font-weight: bold; color: #fff; }
+        .log-entry.info { background-color: #2196f3; }
+        .log-entry.success { background-color: #4caf50; }
+        .log-entry.error { background-color: #f44336; }
     </style>
 </head>
 <body>
@@ -90,6 +95,10 @@
         <button onclick="archiveAllNodes()">Архівувати всі вузли</button>
     </div>
 
+    <div id="archive-controls" class="mass-actions"></div>
+
+    <div class="log-container" id="actionLog"></div>
+
     <table id="nodes">
         <thead>
             <tr>
@@ -107,46 +116,6 @@
 
     <div id="error" class="error" style="display: none;">Помилка підключення до сервера!</div>
     <div id="stats" class="stats"></div>
-
-    <div id="historyModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeHistory()">&times;</span>
-            <h2>Історія вузла</h2>
-            <div class="range-select">
-                <label for="timeRange">Вибрати діапазон:</label>
-                <select id="timeRange" onchange="updateChart(currentNode)">
-                    <option value="1h">1 година</option>
-                    <option value="6h">6 годин</option>
-                    <option value="12h">12 годин</option>
-                    <option value="24h" selected>24 години</option>
-                    <option value="7d">7 днів</option>
-                    <option value="30d">30 днів</option>
-                </select>
-            </div>
-            <table id="historyTable" class="history-table">
-                <thead>
-                    <tr>
-                        <th>Статус</th>
-                        <th>Час</th>
-                        <th>Кількість помилок</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <div class="chart-container">
-                <canvas id="historyChart"></canvas>
-            </div>
-            <div id="nodeStats" class="node-stats"></div>
-            <div class="download-buttons">
-                <button onclick="downloadChartAsPNG(currentNode)">Завантажити PNG</button>
-                <button onclick="downloadChartAsPDF(currentNode)">Завантажити PDF</button>
-                <button onclick="exportToCSV()">Експортувати в CSV</button>
-            </div>
-            <div class="reset-buttons">
-                <button onclick="resetNodeHistory(currentNode)">Скинути історію вузла</button>
-            </div>
-        </div>
-    </div>
 
     <script src="history.js"></script>
     <script>
