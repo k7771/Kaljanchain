@@ -74,6 +74,25 @@ function archiveAllNodes() {
         archiveNodeHistory(address);
     }
     showNotification("Історії всіх вузлів успішно архівовані.");
+    createBackupArchive();
+}
+
+// Створює резервну копію всієї історії вузлів
+function createBackupArchive() {
+    let csv = 'Адреса,Статус,Час,Кількість помилок\n';
+    for (const address in history) {
+        history[address].forEach(entry => {
+            csv += `${address},${entry.status},${entry.timestamp},${entry.errorCount}\n`;
+        });
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nodes_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification("Резервна копія всіх вузлів успішно створена.");
 }
 
 // Масове очищення історії всіх вузлів
@@ -91,14 +110,14 @@ function updateNodeStatusIndicators() {
         const statusCell = row.cells[1];
         const status = statusCell.textContent.trim();
         if (status === 'доступний') {
-            statusCell.style.color = 'green';
-            statusCell.style.fontWeight = 'bold';
+            statusCell.classList.add('available');
+            statusCell.classList.remove('unavailable', 'inactive');
         } else if (status === 'недоступний') {
-            statusCell.style.color = 'red';
-            statusCell.style.fontWeight = 'bold';
+            statusCell.classList.add('unavailable');
+            statusCell.classList.remove('available', 'inactive');
         } else {
-            statusCell.style.color = 'gray';
-            statusCell.style.fontWeight = 'normal';
+            statusCell.classList.add('inactive');
+            statusCell.classList.remove('available', 'unavailable');
         }
     });
 }
@@ -123,31 +142,6 @@ function updateChart(address) {
 
     // Оновлення статистики
     updateStats(address, nodeHistory);
-}
-
-// Створює новий графік для вузла
-function createChart(address) {
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    charts[address] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Кількість помилок',
-                data: [],
-                borderColor: 'red',
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: { display: true },
-                y: { display: true, beginAtZero: false }
-            }
-        }
-    });
-    updateChart(address);
 }
 
 // Повертає максимальну кількість записів в історії
