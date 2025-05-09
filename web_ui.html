@@ -1,156 +1,154 @@
-// Історія змін статусів вузлів
-const history = {};
-const MAX_HISTORY_ENTRIES = 100;
-const charts = {};
-const NODE_INACTIVITY_LIMIT = 2592000000; // 30 днів
-
-// Додає запис до історії вузла
-function addToHistory(node) {
-    if (!history[node.address]) {
-        history[node.address] = [];
-    }
-    const timestamp = new Date().toLocaleString();
-    const entry = {
-        status: node.status,
-        timestamp: timestamp,
-        errorCount: node.error_count,
-        time: Date.now()
-    };
-    history[node.address].push(entry);
-
-    // Очищення старих записів, якщо їх більше ніж MAX_HISTORY_ENTRIES
-    if (history[node.address].length > getMaxHistoryEntries()) {
-        history[node.address].shift();
-    }
-
-    // Видалення вузлів з нульовою активністю
-    if (history[node.address].length === 0) {
-        delete history[node.address];
-    }
-
-    // Оновлення графіка, якщо він відкритий
-    if (charts[node.address]) {
-        updateChart(node.address);
-    }
-
-    // Автоматичне видалення неактивних вузлів
-    cleanupInactiveNodes();
-}
-
-// Очищує вузли з нульовою активністю
-function cleanupInactiveNodes() {
-    const cutoff = Date.now() - NODE_INACTIVITY_LIMIT;
-    for (const address in history) {
-        const lastActivity = history[address].at(-1)?.time || 0;
-        if (lastActivity < cutoff) {
-            delete history[address];
-            console.log(`Вузол ${address} видалений через неактивність.`);
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaljanchain Node Monitor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
         }
-    }
-}
-
-// Повертає історію вузла з фільтрацією за часом
-function getNodeHistory(address, range = 86400000) { // за замовчуванням 24 години
-    const cutoff = Date.now() - range;
-    return (history[address] || []).filter(entry => entry.time >= cutoff);
-}
-
-// Оновлює графік для вузла
-function updateChart(address) {
-    const chart = charts[address];
-    const nodeHistory = getNodeHistory(address, getSelectedRange());
-    const labels = nodeHistory.map(entry => new Date(entry.time).toLocaleString());
-    const data = nodeHistory.map(entry => entry.errorCount);
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = data;
-    chart.options.scales.y.suggestedMin = Math.min(...data) - 1;
-    chart.options.scales.y.suggestedMax = Math.max(...data) + 1;
-    chart.update();
-
-    // Оновлення статистики
-    updateStats(address, nodeHistory);
-}
-
-// Створює новий графік для вузла
-function createChart(address) {
-    const ctx = document.getElementById('historyChart').getContext('2d');
-    charts[address] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Кількість помилок',
-                data: [],
-                borderColor: 'red',
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: { display: true },
-                y: { display: true, beginAtZero: false }
-            }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 8px;
         }
-    });
-    updateChart(address);
-}
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover, .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .history-table th, .history-table td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        .history-table th { background-color: #333; color: #fff; }
+        .chart-container { width: 100%; height: 400px; margin-top: 20px; }
+        .range-select, .history-settings { margin-top: 20px; text-align: center; }
+        .node-stats { margin-top: 20px; text-align: center; font-weight: bold; }
+        .download-buttons { margin-top: 20px; text-align: center; }
+        .download-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        .reset-buttons { margin-top: 20px; text-align: center; }
+        .reset-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; background-color: #f44336; color: #fff; cursor: pointer; border: none; border-radius: 5px; }
+        .reset-buttons button:hover { background-color: #d32f2f; }
+        .archive-settings { margin-top: 20px; text-align: center; }
+        .archive-settings label { font-weight: bold; margin-right: 10px; }
+        .archive-settings select { padding: 5px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Kaljanchain Node Monitor</h1>
 
-// Повертає вибраний діапазон часу
-function getSelectedRange() {
-    const range = document.getElementById('timeRange').value;
-    switch (range) {
-        case '1h': return 3600000;
-        case '6h': return 21600000;
-        case '12h': return 43200000;
-        case '24h': return 86400000;
-        case '7d': return 604800000;
-        case '30d': return 2592000000;
-        default: return 86400000;
-    }
-}
+    <div class="filter">
+        <label for="statusFilter">Фільтрувати вузли:</label>
+        <select id="statusFilter" onchange="filterNodes()">
+            <option value="all">Усі</option>
+            <option value="доступний">Доступні</option>
+            <option value="недоступний">Недоступні</option>
+        </select>
+    </div>
 
-// Оновлює підсумкову статистику для вузла
-function updateStats(address, nodeHistory) {
-    const totalErrors = nodeHistory.reduce((sum, entry) => sum + entry.errorCount, 0);
-    const minErrors = Math.min(...nodeHistory.map(entry => entry.errorCount));
-    const maxErrors = Math.max(...nodeHistory.map(entry => entry.errorCount));
-    const avgErrors = (totalErrors / nodeHistory.length).toFixed(2);
+    <div class="history-settings">
+        <label for="maxHistoryEntries">Максимальна кількість записів в історії:</label>
+        <input type="number" id="maxHistoryEntries" value="100" min="10" max="1000" step="10" onchange="updateMaxEntries()">
+        <button onclick="exportAllHistoryToCSV()">Експортувати всю історію в CSV</button>
+    </div>
 
-    const statsElement = document.getElementById('nodeStats');
-    statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок: ${totalErrors} | Мінімум: ${minErrors} | Максимум: ${maxErrors} | Середнє: ${avgErrors}`;
-}
+    <div class="archive-settings">
+        <label for="inactivityLimit">Період неактивності:</label>
+        <select id="inactivityLimit" onchange="updateInactivityLimit()">
+            <option value="2592000000">30 днів</option>
+            <option value="604800000">7 днів</option>
+            <option value="86400000">24 години</option>
+            <option value="3600000">1 година</option>
+        </select>
+        <button onclick="archiveAllNodes()">Архівувати всі вузли</button>
+    </div>
 
-// Повертає максимальну кількість записів в історії
-function getMaxHistoryEntries() {
-    const maxEntries = document.getElementById('maxHistoryEntries').value;
-    return parseInt(maxEntries) || MAX_HISTORY_ENTRIES;
-}
+    <table id="nodes">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Адреса</th>
+                <th onclick="sortTable(1)">Статус</th>
+                <th onclick="sortTable(2)">Остання перевірка</th>
+                <th onclick="sortTable(3)">Кількість помилок</th>
+                <th>Історія</th>
+                <th>Скинути</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 
-// Експортує всю історію вузлів у CSV
-function exportAllHistoryToCSV() {
-    let csv = 'Адреса,Статус,Час,Кількість помилок\n';
-    for (const address in history) {
-        history[address].forEach(entry => {
-            csv += `${address},${entry.status},${entry.timestamp},${entry.errorCount}\n`;
-        });
-    }
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `all_nodes_history.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
+    <div id="error" class="error" style="display: none;">Помилка підключення до сервера!</div>
+    <div id="stats" class="stats"></div>
 
-// Скидає історію для окремого вузла
-function resetNodeHistory(address) {
-    delete history[address];
-    if (charts[address]) {
-        charts[address].data.labels = [];
-        charts[address].data.datasets[0].data = [];
-        charts[address].update();
-    }
-    alert(`Історія вузла ${address} успішно очищена.`);
-}
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHistory()">&times;</span>
+            <h2>Історія вузла</h2>
+            <div class="range-select">
+                <label for="timeRange">Вибрати діапазон:</label>
+                <select id="timeRange" onchange="updateChart(currentNode)">
+                    <option value="1h">1 година</option>
+                    <option value="6h">6 годин</option>
+                    <option value="12h">12 годин</option>
+                    <option value="24h" selected>24 години</option>
+                    <option value="7d">7 днів</option>
+                    <option value="30d">30 днів</option>
+                </select>
+            </div>
+            <table id="historyTable" class="history-table">
+                <thead>
+                    <tr>
+                        <th>Статус</th>
+                        <th>Час</th>
+                        <th>Кількість помилок</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
+            <div id="nodeStats" class="node-stats"></div>
+            <div class="download-buttons">
+                <button onclick="downloadChartAsPNG(currentNode)">Завантажити PNG</button>
+                <button onclick="downloadChartAsPDF(currentNode)">Завантажити PDF</button>
+                <button onclick="exportToCSV()">Експортувати в CSV</button>
+            </div>
+            <div class="reset-buttons">
+                <button onclick="resetNodeHistory(currentNode)">Скинути історію вузла</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="history.js"></script>
+    <script>
+        function updateInactivityLimit() {
+            const limit = document.getElementById('inactivityLimit').value;
+            NODE_INACTIVITY_LIMIT = parseInt(limit);
+            alert(`Період неактивності оновлено до ${NODE_INACTIVITY_LIMIT / 86400000} днів.`);
+        }
+    </script>
+</body>
+</html>
