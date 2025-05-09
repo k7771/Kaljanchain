@@ -2,7 +2,7 @@
 const history = {};
 const MAX_HISTORY_ENTRIES = 100;
 const charts = {};
-const NODE_INACTIVITY_LIMIT = 2592000000; // 30 днів
+let NODE_INACTIVITY_LIMIT = 2592000000; // 30 днів за замовчуванням
 
 // Додає запис до історії вузла
 function addToHistory(node) {
@@ -43,10 +43,29 @@ function cleanupInactiveNodes() {
     for (const address in history) {
         const lastActivity = history[address].at(-1)?.time || 0;
         if (lastActivity < cutoff) {
+            archiveNodeHistory(address);
             delete history[address];
             console.log(`Вузол ${address} видалений через неактивність.`);
+            showNotification(`Вузол ${address} видалений через неактивність.`);
         }
     }
+}
+
+// Архівує історію вузла перед видаленням
+function archiveNodeHistory(address) {
+    let csv = 'Адреса,Статус,Час,Кількість помилок\n';
+    history[address].forEach(entry => {
+        csv += `${address},${entry.status},${entry.timestamp},${entry.errorCount}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${address}_history_backup.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    console.log(`Історія вузла ${address} архівована.`);
+    showNotification(`Історія вузла ${address} архівована.`);
 }
 
 // Повертає історію вузла з фільтрацією за часом
@@ -127,6 +146,11 @@ function getMaxHistoryEntries() {
     return parseInt(maxEntries) || MAX_HISTORY_ENTRIES;
 }
 
+// Відображає повідомлення
+function showNotification(message) {
+    alert(message);
+}
+
 // Експортує всю історію вузлів у CSV
 function exportAllHistoryToCSV() {
     let csv = 'Адреса,Статус,Час,Кількість помилок\n';
@@ -152,5 +176,5 @@ function resetNodeHistory(address) {
         charts[address].data.datasets[0].data = [];
         charts[address].update();
     }
-    alert(`Історія вузла ${address} успішно очищена.`);
+    showNotification(`Історія вузла ${address} успішно очищена.`);
 }
