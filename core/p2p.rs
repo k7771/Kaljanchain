@@ -18,6 +18,8 @@ pub enum Message {
     Transaction(Transaction),
     SyncRequest,
     SyncResponse(Vec<Block>),
+    MempoolRequest,
+    MempoolResponse(Vec<Transaction>),
 }
 
 // === Основна структура вузла ===
@@ -114,7 +116,23 @@ impl Node {
                     }
                 }
             },
+            Message::MempoolRequest => {
+                self.send_mempool(&self.address);
+            },
+            Message::MempoolResponse(transactions) => {
+                println!("Отримано синхронізовані транзакції: {}", transactions.len());
+                let mut mempool = self.mempool.lock().unwrap();
+                mempool.extend(transactions);
+            },
         }
+    }
+
+    // Відправка mempool іншому вузлу
+    pub fn send_mempool(&self, address: &str) {
+        let mempool = self.mempool.lock().unwrap();
+        let message = Message::MempoolResponse(mempool.clone());
+        let serialized = serde_json::to_string(&message).unwrap();
+        self.send_message(address, &serialized);
     }
 
     // Відправка повідомлення конкретному вузлу
