@@ -72,9 +72,10 @@ function archiveNodeHistory(address) {
 function archiveAllNodes() {
     for (const address in history) {
         archiveNodeHistory(address);
+        delete history[address];
     }
-    showNotification("Історії всіх вузлів успішно архівовані.");
     createBackupArchive();
+    showNotification("Історії всіх вузлів успішно архівовані та очищені.");
 }
 
 // Створює резервну копію всієї історії вузлів
