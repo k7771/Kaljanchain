@@ -47,7 +47,7 @@ function cleanupInactiveNodes() {
             archiveNodeHistory(address);
             delete history[address];
             removeNodeFromTable(address);
-            showNotification(`Вузол ${address} видалений через неактивність.`);
+            showNotification(`Вузол ${address} видалений через неактивність.`, 'error');
         }
     }
 }
@@ -75,7 +75,7 @@ function archiveNodeHistory(address) {
     a.download = `${address}_history_backup.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification(`Історія вузла ${address} архівована.`);
+    showNotification(`Історія вузла ${address} архівована.`, 'success');
 }
 
 // Масове архівування всіх вузлів
@@ -86,7 +86,7 @@ function archiveAllNodes() {
         removeNodeFromTable(address);
     }
     createBackupArchive();
-    showNotification("Історії всіх вузлів успішно архівовані та очищені.");
+    showNotification("Історії всіх вузлів успішно архівовані та очищені.", 'success');
 }
 
 // Створює резервну копію всієї історії вузлів
@@ -104,7 +104,7 @@ function createBackupArchive() {
     a.download = `nodes_backup_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification("Резервна копія всіх вузлів успішно створена.");
+    showNotification("Резервна копія всіх вузлів успішно створена.", 'success');
 }
 
 // Масове очищення історії всіх вузлів
@@ -113,7 +113,7 @@ function resetAllNodes() {
         resetNodeHistory(address);
         removeNodeFromTable(address);
     }
-    showNotification("Історії всіх вузлів успішно очищені.");
+    showNotification("Історії всіх вузлів успішно очищені.", 'success');
 }
 
 // Відображає індикатори стану вузлів
@@ -135,13 +135,13 @@ function updateNodeStatusIndicators() {
     });
 }
 
-// Повертає максимальну кількість записів в історії
-function getMaxHistoryEntries() {
-    const maxEntries = document.getElementById('maxHistoryEntries').value;
-    return parseInt(maxEntries) || MAX_HISTORY_ENTRIES;
-}
-
-// Відображає повідомлення
-function showNotification(message) {
-    alert(message);
+// Відображає повідомлення з різними стилями
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.classList.add('notification', type);
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
 }
