@@ -84,6 +84,25 @@ function resetAllNodes() {
     showNotification("Історії всіх вузлів успішно очищені.");
 }
 
+// Відображає індикатори стану вузлів
+function updateNodeStatusIndicators() {
+    const rows = document.querySelectorAll('#nodes tbody tr');
+    rows.forEach(row => {
+        const statusCell = row.cells[1];
+        const status = statusCell.textContent.trim();
+        if (status === 'доступний') {
+            statusCell.style.color = 'green';
+            statusCell.style.fontWeight = 'bold';
+        } else if (status === 'недоступний') {
+            statusCell.style.color = 'red';
+            statusCell.style.fontWeight = 'bold';
+        } else {
+            statusCell.style.color = 'gray';
+            statusCell.style.fontWeight = 'normal';
+        }
+    });
+}
+
 // Повертає історію вузла з фільтрацією за часом
 function getNodeHistory(address, range = 86400000) { // за замовчуванням 24 години
     const cutoff = Date.now() - range;
@@ -129,31 +148,6 @@ function createChart(address) {
         }
     });
     updateChart(address);
-}
-
-// Повертає вибраний діапазон часу
-function getSelectedRange() {
-    const range = document.getElementById('timeRange').value;
-    switch (range) {
-        case '1h': return 3600000;
-        case '6h': return 21600000;
-        case '12h': return 43200000;
-        case '24h': return 86400000;
-        case '7d': return 604800000;
-        case '30d': return 2592000000;
-        default: return 86400000;
-    }
-}
-
-// Оновлює підсумкову статистику для вузла
-function updateStats(address, nodeHistory) {
-    const totalErrors = nodeHistory.reduce((sum, entry) => sum + entry.errorCount, 0);
-    const minErrors = Math.min(...nodeHistory.map(entry => entry.errorCount));
-    const maxErrors = Math.max(...nodeHistory.map(entry => entry.errorCount));
-    const avgErrors = (totalErrors / nodeHistory.length).toFixed(2);
-
-    const statsElement = document.getElementById('nodeStats');
-    statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок: ${totalErrors} | Мінімум: ${minErrors} | Максимум: ${maxErrors} | Середнє: ${avgErrors}`;
 }
 
 // Повертає максимальну кількість записів в історії
