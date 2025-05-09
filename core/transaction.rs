@@ -3,7 +3,6 @@
 use sha2::{Digest, Sha256};
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
-use std::fmt;
 use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier, KEYPAIR_LENGTH};
 use rand::rngs::OsRng;
 
