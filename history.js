@@ -11,16 +11,18 @@ function logAction(message, type = 'info') {
 }
 
 // Оновлює журнал дій у таблиці
-function updateActionLog() {
+function updateActionLog(filter = 'all') {
     const logContainer = document.getElementById('actionLog');
     if (!logContainer) return;
 
     logContainer.innerHTML = '';
     actionLog.slice().reverse().forEach(entry => {
-        const logItem = document.createElement('div');
-        logItem.classList.add('log-entry', entry.type);
-        logItem.textContent = `[${entry.timestamp}] ${entry.message}`;
-        logContainer.appendChild(logItem);
+        if (filter === 'all' || entry.type === filter) {
+            const logItem = document.createElement('div');
+            logItem.classList.add('log-entry', entry.type);
+            logItem.textContent = `[${entry.timestamp}] ${entry.message}`;
+            logContainer.appendChild(logItem);
+        }
     });
 }
 
@@ -54,8 +56,27 @@ function addRestoreButton() {
 // Відновлює всі вузли з архіву
 function restoreAllNodes() {
     logAction('Відновлення всіх вузлів з архіву...', 'info');
-    // Логіка для відновлення вузлів
-    logAction('Всі вузли успішно відновлені.', 'success');
+    // Логіка для відновлення вузлів з файлу архіву
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = (event) => {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const lines = e.target.result.split('\n');
+            lines.slice(1).forEach(line => {
+                const [address, status, timestamp, errorCount] = line.split(',');
+                if (address && status && timestamp && errorCount) {
+                    addNodeToTable(address.trim(), status.trim(), timestamp.trim(), errorCount.trim());
+                    logAction(`Вузол ${address.trim()} успішно відновлений.`, 'success');
+                }
+            });
+            logAction('Всі вузли успішно відновлені.', 'success');
+        };
+        reader.readAsText(file);
+    };
+    input.click();
 }
 
 // Ініціалізація при завантаженні сторінки
