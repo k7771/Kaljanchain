@@ -10,6 +10,7 @@
     z-index: 1000;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     transition: opacity 0.3s ease, bottom 0.3s ease;
+    opacity: 1;
 }
 
 .notification.success {
@@ -27,4 +28,5 @@
 .notification.hide {
     opacity: 0;
     bottom: 0;
+    pointer-events: none;
 }
