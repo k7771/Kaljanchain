@@ -57,4 +57,3 @@ fn main() {
     let second_block = Block::new(1, genesis_block.hash.clone(), String::from("Second Block"));
     println!("Second Block: {:?}", second_block);
 }
-
