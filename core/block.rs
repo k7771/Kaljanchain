@@ -1,4 +1,4 @@
-// Kaljanchain Core - Initial Block Structure (Rust)
+// Kaljanchain Core - Block Structure (Rust)
 
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
@@ -35,7 +35,15 @@ impl Block {
 
     // Розрахунок хеша блоку
     pub fn calculate_hash(&self) -> String {
-        let data = format!("{}{}{}{}{}{}", self.index, self.timestamp, self.prev_hash, self.data, self.nonce, self.timestamp.timestamp_nanos());
+        let data = format!(
+            "{}{}{}{}{}{}",
+            self.index,
+            self.timestamp,
+            self.prev_hash,
+            self.data,
+            self.nonce,
+            self.timestamp.timestamp_nanos()
+        );
         let mut hasher = Sha256::new();
         hasher.update(data.as_bytes());
         format!("{:x}", hasher.finalize())
