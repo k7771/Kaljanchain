@@ -59,6 +59,12 @@
         .log-entry.info { background-color: #2196f3; }
         .log-entry.success { background-color: #4caf50; }
         .log-entry.error { background-color: #f44336; }
+        .log-filter { margin-top: 20px; text-align: center; }
+        .log-filter button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        .log-filter button.info { background-color: #2196f3; color: #fff; }
+        .log-filter button.success { background-color: #4caf50; color: #fff; }
+        .log-filter button.error { background-color: #f44336; color: #fff; }
+        .log-filter button.active { border: 2px solid #000; }
     </style>
 </head>
 <body>
@@ -96,6 +102,13 @@
     </div>
 
     <div id="archive-controls" class="mass-actions"></div>
+
+    <div class="log-filter">
+        <button onclick="updateActionLog('all')" class="active">Усі</button>
+        <button onclick="updateActionLog('info')" class="info">Інформація</button>
+        <button onclick="updateActionLog('success')" class="success">Успішні</button>
+        <button onclick="updateActionLog('error')" class="error">Помилки</button>
+    </div>
 
     <div class="log-container" id="actionLog"></div>
 
