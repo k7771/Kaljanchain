@@ -24,7 +24,7 @@ function addToHistory(node) {
 
     // Оновлення графіка, якщо він відкритий
     if (charts[node.address]) {
-        updateChart(node.address);
+        updateChart(address);
     }
 }
 
@@ -42,6 +42,8 @@ function updateChart(address) {
     const data = nodeHistory.map(entry => entry.errorCount);
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
+    chart.options.scales.y.suggestedMin = Math.min(...data) - 1;
+    chart.options.scales.y.suggestedMax = Math.max(...data) + 1;
     chart.update();
 
     // Оновлення статистики
@@ -66,7 +68,7 @@ function createChart(address) {
             responsive: true,
             scales: {
                 x: { display: true },
-                y: { display: true }
+                y: { display: true, beginAtZero: false }
             }
         }
     });
@@ -96,4 +98,20 @@ function updateStats(address, nodeHistory) {
 
     const statsElement = document.getElementById('nodeStats');
     statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок: ${totalErrors} | Мінімум: ${minErrors} | Максимум: ${maxErrors} | Середнє: ${avgErrors}`;
+}
+
+// Завантажує графік у PNG форматі
+function downloadChartAsPNG(address) {
+    const link = document.createElement('a');
+    link.href = charts[address].toBase64Image();
+    link.download = `${address}_history.png`;
+    link.click();
+}
+
+// Завантажує графік у PDF форматі
+function downloadChartAsPDF(address) {
+    const canvas = charts[address].canvas;
+    const imgData = canvas.toDataURL('image/png');
+    const pdfWindow = window.open();
+    pdfWindow.document.write('<iframe src="' + imgData + '" width="100%" height="100%"></iframe>');
 }
