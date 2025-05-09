@@ -1,4 +1,4 @@
-// Kaljanchain API - Enhanced HTTP API with Balance, Signature Verification, and Transaction History (Rust)
+// Kaljanchain API - Enhanced HTTP API with Block Details and Node Status (Rust)
 
 use std::sync::{Arc, Mutex}; use kaljanchain_core::{Blockchain, Block}; use kaljanchain_transactions::Transaction; use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier}; use rand::rngs::OsRng; use warp::Filter; use serde::{Serialize, Deserialize}; use std::collections::HashMap; use base64;
 
@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex}; use kaljanchain_core::{Blockchain, Block}; use kalj
 // === Основна структура API відповідей === #[derive(Serialize, Deserialize, Debug, Clone)] struct ApiResponse { status: String, message: String, }
 
 // === Структура для історії транзакцій === #[derive(Serialize, Deserialize, Debug, Clone)] struct TransactionHistory { transactions: Vec<Transaction>, }
+
+// === Структура для детальної інформації про блок === #[derive(Serialize, Deserialize, Debug, Clone)] struct BlockDetails { block: Block, transactions: Vec<Transaction>, }
 
 // Ініціалізація HTTP API async fn start_api(blockchain: Arc<Mutex<Blockchain>>, mempool: Arc<Mutex<Vec<Transaction>>>, balances: Arc<Mutex<HashMap<String, f64>>>) { let blockchain_filter = warp::any().map(move || blockchain.clone()); let mempool_filter = warp::any().map(move || mempool.clone()); let balances_filter = warp::any().map(move || balances.clone());
 
@@ -79,11 +81,29 @@ let transaction_history = warp::path("history")
         warp::reply::json(&TransactionHistory { transactions: history })
     });
 
+// Ендпоінт для перегляду деталей блоку
+let block_details = warp::path("block")
+    .and(warp::get())
+    .and(warp::query::<HashMap<String, String>>())
+    .and(blockchain_filter.clone())
+    .map(|params: HashMap<String, String>, blockchain: Arc<Mutex<Blockchain>>| {
+        let index = params.get("index").and_then(|i| i.parse::<usize>().ok()).unwrap_or(0);
+        let blockchain = blockchain.lock().unwrap();
+        if let Some(block) = blockchain.blocks.get(index) {
+            let transactions: Vec<Transaction> = serde_json::from_str(&block.data).unwrap_or(vec![]);
+            warp::reply::json(&BlockDetails { block: block.clone(), transactions })
+        } else {
+            warp::reply::json(&ApiResponse {
+                status: String::from("error"),
+                message: String::from("Блок не знайдено"),
+            })
+        }
+    });
+
 // Запуск сервера
-let routes = blockchain_status.or(check_balance).or(create_transaction).or(transaction_history);
+let routes = blockchain_status.or(check_balance).or(create_transaction).or(transaction_history).or(block_details);
 warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 
 }
 
 // Тестування API #[tokio::main] async fn main() { let blockchain = Arc::new(Mutex::new(Blockchain::new(4))); let mempool = Arc::new(Mutex::new(vec![])); let balances = Arc::new(Mutex::new(HashMap::new())); println!("Kaljanchain API запущено на http://127.0.0.1:8080"); start_api(blockchain, mempool, balances).await; }
-
