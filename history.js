@@ -22,6 +22,11 @@ function addToHistory(node) {
         history[node.address].shift();
     }
 
+    // Видалення вузлів з нульовою активністю
+    if (history[node.address].length === 0) {
+        delete history[node.address];
+    }
+
     // Оновлення графіка, якщо він відкритий
     if (charts[node.address]) {
         updateChart(node.address);
@@ -121,4 +126,15 @@ function exportAllHistoryToCSV() {
     a.download = `all_nodes_history.csv`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// Скидає історію для окремого вузла
+function resetNodeHistory(address) {
+    delete history[address];
+    if (charts[address]) {
+        charts[address].data.labels = [];
+        charts[address].data.datasets[0].data = [];
+        charts[address].update();
+    }
+    alert(`Історія вузла ${address} успішно очищена.`);
 }
