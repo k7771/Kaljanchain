@@ -15,10 +15,23 @@
         .online { color: green; font-weight: bold; }
         .offline { color: red; font-weight: bold; }
         .error { color: #a00; font-weight: bold; text-align: center; margin-top: 20px; }
+        .stats { text-align: center; margin-top: 20px; font-weight: bold; }
+        .filter { margin: 10px auto; text-align: center; }
+        select { padding: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
     <h1>Kaljanchain Node Monitor</h1>
+
+    <div class="filter">
+        <label for="statusFilter">Фільтрувати вузли:</label>
+        <select id="statusFilter" onchange="filterNodes()">
+            <option value="all">Усі</option>
+            <option value="доступний">Доступні</option>
+            <option value="недоступний">Недоступні</option>
+        </select>
+    </div>
+
     <table id="nodes">
         <thead>
             <tr>
@@ -33,24 +46,15 @@
     </table>
 
     <div id="error" class="error" style="display: none;">Помилка підключення до сервера!</div>
+    <div id="stats" class="stats"></div>
 
     <script>
         const ws = new WebSocket('ws://localhost:8081/ws');
+        let nodes = [];
 
         ws.onmessage = function(event) {
-            const nodes = JSON.parse(event.data);
-            const tbody = document.querySelector('#nodes tbody');
-            tbody.innerHTML = '';
-            nodes.forEach(node => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${node.address}</td>
-                    <td class="${node.status === 'доступний' ? 'online' : 'offline'}">${node.status}</td>
-                    <td>${node.last_check}</td>
-                    <td>${node.error_count}</td>
-                `;
-                tbody.appendChild(row);
-            });
+            nodes = JSON.parse(event.data);
+            updateTable();
             document.getElementById('error').style.display = 'none';
         };
 
@@ -58,11 +62,42 @@
             document.getElementById('error').style.display = 'block';
         };
 
+        function updateTable() {
+            const tbody = document.querySelector('#nodes tbody');
+            tbody.innerHTML = '';
+            let availableCount = 0;
+            let unavailableCount = 0;
+            const filter = document.getElementById('statusFilter').value;
+
+            nodes.forEach(node => {
+                if (filter === 'all' || node.status === filter) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${node.address}</td>
+                        <td class="${node.status === 'доступний' ? 'online' : 'offline'}">${node.status}</td>
+                        <td>${node.last_check}</td>
+                        <td>${node.error_count}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+                if (node.status === 'доступний') availableCount++;
+                if (node.status === 'недоступний') unavailableCount++;
+            });
+
+            document.getElementById('stats').innerText = `Доступні вузли: ${availableCount} | Недоступні вузли: ${unavailableCount} | Всього: ${nodes.length}`;
+        }
+
         function sortTable(columnIndex) {
-            const table = document.getElementById('nodes');
-            const rows = Array.from(table.rows).slice(1);
-            rows.sort((a, b) => a.cells[columnIndex].innerText.localeCompare(b.cells[columnIndex].innerText));
-            rows.forEach(row => table.tBodies[0].appendChild(row));
+            nodes.sort((a, b) => {
+                const aValue = Object.values(a)[columnIndex];
+                const bValue = Object.values(b)[columnIndex];
+                return aValue.localeCompare(bValue);
+            });
+            updateTable();
+        }
+
+        function filterNodes() {
+            updateTable();
         }
     </script>
 </body>
