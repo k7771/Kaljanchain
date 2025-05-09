@@ -45,6 +45,8 @@
         .chart-container { width: 100%; height: 400px; margin-top: 20px; }
         .range-select { margin-top: 20px; text-align: center; }
         .node-stats { margin-top: 20px; text-align: center; font-weight: bold; }
+        .download-buttons { margin-top: 20px; text-align: center; }
+        .download-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -105,7 +107,11 @@
                 <canvas id="historyChart"></canvas>
             </div>
             <div id="nodeStats" class="node-stats"></div>
-            <button onclick="exportToCSV()">Експортувати в CSV</button>
+            <div class="download-buttons">
+                <button onclick="downloadChartAsPNG(currentNode)">Завантажити PNG</button>
+                <button onclick="downloadChartAsPDF(currentNode)">Завантажити PDF</button>
+                <button onclick="exportToCSV()">Експортувати в CSV</button>
+            </div>
         </div>
     </div>
 
@@ -151,29 +157,6 @@
             });
 
             document.getElementById('stats').innerText = `Доступні вузли: ${availableCount} | Недоступні вузли: ${unavailableCount} | Всього: ${nodes.length}`;
-        }
-
-        function showHistory(address) {
-            currentNode = address;
-            const history = getNodeHistory(address, getSelectedRange());
-            const tbody = document.querySelector('#historyTable tbody');
-            tbody.innerHTML = '';
-            const labels = [];
-            const data = [];
-            history.forEach(entry => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${entry.status}</td>
-                    <td>${entry.timestamp}</td>
-                    <td>${entry.errorCount}</td>
-                `;
-                tbody.appendChild(row);
-                labels.push(entry.timestamp);
-                data.push(entry.errorCount);
-            });
-            document.getElementById('historyModal').style.display = 'block';
-            createChart(address);
-            updateChart(address);
         }
 
         function closeHistory() {
