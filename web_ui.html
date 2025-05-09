@@ -47,6 +47,9 @@
         .node-stats { margin-top: 20px; text-align: center; font-weight: bold; }
         .download-buttons { margin-top: 20px; text-align: center; }
         .download-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        .reset-buttons { margin-top: 20px; text-align: center; }
+        .reset-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; background-color: #f44336; color: #fff; cursor: pointer; border: none; border-radius: 5px; }
+        .reset-buttons button:hover { background-color: #d32f2f; }
     </style>
 </head>
 <body>
@@ -75,6 +78,7 @@
                 <th onclick="sortTable(2)">Остання перевірка</th>
                 <th onclick="sortTable(3)">Кількість помилок</th>
                 <th>Історія</th>
+                <th>Скинути</th>
             </tr>
         </thead>
         <tbody>
@@ -118,6 +122,9 @@
                 <button onclick="downloadChartAsPDF(currentNode)">Завантажити PDF</button>
                 <button onclick="exportToCSV()">Експортувати в CSV</button>
             </div>
+            <div class="reset-buttons">
+                <button onclick="resetNodeHistory(currentNode)">Скинути історію вузла</button>
+            </div>
         </div>
     </div>
 
@@ -155,6 +162,7 @@
                         <td>${node.last_check}</td>
                         <td>${node.error_count}</td>
                         <td><button onclick="showHistory('${node.address}')">Показати</button></td>
+                        <td><button onclick="resetNodeHistory('${node.address}')">Скинути</button></td>
                     `;
                     tbody.appendChild(row);
                 }
