@@ -68,6 +68,22 @@ function archiveNodeHistory(address) {
     showNotification(`Історія вузла ${address} архівована.`);
 }
 
+// Масове архівування всіх вузлів
+function archiveAllNodes() {
+    for (const address in history) {
+        archiveNodeHistory(address);
+    }
+    showNotification("Історії всіх вузлів успішно архівовані.");
+}
+
+// Масове очищення історії всіх вузлів
+function resetAllNodes() {
+    for (const address in history) {
+        resetNodeHistory(address);
+    }
+    showNotification("Історії всіх вузлів успішно очищені.");
+}
+
 // Повертає історію вузла з фільтрацією за часом
 function getNodeHistory(address, range = 86400000) { // за замовчуванням 24 години
     const cutoff = Date.now() - range;
@@ -149,32 +165,4 @@ function getMaxHistoryEntries() {
 // Відображає повідомлення
 function showNotification(message) {
     alert(message);
-}
-
-// Експортує всю історію вузлів у CSV
-function exportAllHistoryToCSV() {
-    let csv = 'Адреса,Статус,Час,Кількість помилок\n';
-    for (const address in history) {
-        history[address].forEach(entry => {
-            csv += `${address},${entry.status},${entry.timestamp},${entry.errorCount}\n`;
-        });
-    }
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `all_nodes_history.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// Скидає історію для окремого вузла
-function resetNodeHistory(address) {
-    delete history[address];
-    if (charts[address]) {
-        charts[address].data.labels = [];
-        charts[address].data.datasets[0].data = [];
-        charts[address].update();
-    }
-    showNotification(`Історія вузла ${address} успішно очищена.`);
 }
