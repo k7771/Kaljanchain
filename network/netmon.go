@@ -21,6 +21,7 @@ type Config struct {
 	FromEmail    string `json:"from_email"`
 	RetryCount   int    `json:"retry_count"`
 	RetryDelay   int    `json:"retry_delay"`
+	BlacklistTimeout int `json:"blacklist_timeout"`
 }
 
 // Вузол блокчейну з адресою, статусом та параметрами перевірки.
@@ -32,6 +33,8 @@ type Node struct {
 	AlertEmail  string
 	lastAlert   time.Time
 	alertLock   sync.Mutex
+	blacklisted bool
+	blacklistTime time.Time
 }
 
 // Завантаження конфігурації SMTP з JSON-файлу.
@@ -50,6 +53,11 @@ func LoadConfig(filename string) (*Config, error) {
 
 // Перевірка доступності вузла та оновлення статусу.
 func (n *Node) Check(config *Config) {
+	if n.blacklisted && time.Since(n.blacklistTime) < time.Duration(config.BlacklistTimeout)*time.Minute {
+		log.Printf("[ПОПЕРЕДЖЕННЯ] Вузол %s знаходиться в чорному списку.", n.Address)
+		return
+	}
+
 	conn, err := net.DialTimeout("tcp", n.Address, 5*time.Second)
 	if err != nil {
 		n.Status = false
@@ -58,6 +66,7 @@ func (n *Node) Check(config *Config) {
 		if n.ErrorCount >= n.MaxErrors {
 			n.sendAlert(config)
 			n.ErrorCount = 0 // Скидання лічильника після сповіщення
+			n.blacklistNode()
 		}
 	} else {
 		n.Status = true
@@ -113,6 +122,13 @@ func (n *Node) sendAlert(config *Config) {
 			break
 		}
 	}
+}
+
+// Додавання вузла до чорного списку.
+func (n *Node) blacklistNode() {
+	n.blacklisted = true
+	n.blacklistTime = time.Now()
+	log.Printf("[ПОПЕРЕДЖЕННЯ] Вузол %s додано до чорного списку.", n.Address)
 }
 
 // Безперервна перевірка вузлів.
