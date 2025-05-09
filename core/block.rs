@@ -20,14 +20,13 @@ impl Block {
     // Створення нового блоку
     pub fn new(index: u64, prev_hash: String, data: String) -> Self {
         let timestamp = Utc::now();
-        let nonce = 0;
         let mut block = Block {
             index,
             timestamp,
             prev_hash,
             data,
             hash: String::new(),
-            nonce,
+            nonce: 0,
         };
         block.hash = block.calculate_hash();
         block
@@ -49,6 +48,16 @@ impl Block {
         format!("{:x}", hasher.finalize())
     }
 
+    // Майнінг блоку зі складністю
+    pub fn mine_block(&mut self, difficulty: usize) {
+        let prefix = "0".repeat(difficulty);
+        while !self.hash.starts_with(&prefix) {
+            self.nonce += 1;
+            self.hash = self.calculate_hash();
+        }
+        println!("Block mined: {}", self.hash);
+    }
+
     // Перевірка валідності блоку
     pub fn is_valid(&self, prev_block: &Block) -> bool {
         self.index == prev_block.index + 1 &&
@@ -59,9 +68,11 @@ impl Block {
 
 // Тестування блоку
 fn main() {
-    let genesis_block = Block::new(0, String::from("0"), String::from("Genesis Block"));
+    let mut genesis_block = Block::new(0, String::from("0"), String::from("Genesis Block"));
     println!("Genesis Block: {:?}", genesis_block);
+    genesis_block.mine_block(4);
 
-    let second_block = Block::new(1, genesis_block.hash.clone(), String::from("Second Block"));
+    let mut second_block = Block::new(1, genesis_block.hash.clone(), String::from("Second Block"));
+    second_block.mine_block(4);
     println!("Second Block: {:?}", second_block);
 }
