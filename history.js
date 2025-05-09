@@ -105,3 +105,20 @@ function getMaxHistoryEntries() {
     const maxEntries = document.getElementById('maxHistoryEntries').value;
     return parseInt(maxEntries) || MAX_HISTORY_ENTRIES;
 }
+
+// Експортує всю історію вузлів у CSV
+function exportAllHistoryToCSV() {
+    let csv = 'Адреса,Статус,Час,Кількість помилок\n';
+    for (const address in history) {
+        history[address].forEach(entry => {
+            csv += `${address},${entry.status},${entry.timestamp},${entry.errorCount}\n`;
+        });
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all_nodes_history.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
