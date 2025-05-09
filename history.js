@@ -1,5 +1,6 @@
 // Історія змін статусів вузлів
 const history = {};
+const MAX_HISTORY_ENTRIES = 100;
 
 // Додає запис до історії вузла
 function addToHistory(node) {
@@ -13,6 +14,11 @@ function addToHistory(node) {
         errorCount: node.error_count
     };
     history[node.address].push(entry);
+
+    // Очищення старих записів, якщо їх більше ніж MAX_HISTORY_ENTRIES
+    if (history[node.address].length > MAX_HISTORY_ENTRIES) {
+        history[node.address].shift();
+    }
 }
 
 // Повертає історію вузла
