@@ -43,16 +43,14 @@
         .history-table th, .history-table td { border: 1px solid #ccc; padding: 8px; text-align: center; }
         .history-table th { background-color: #333; color: #fff; }
         .chart-container { width: 100%; height: 400px; margin-top: 20px; }
-        .range-select, .history-settings { margin-top: 20px; text-align: center; }
+        .range-select, .history-settings, .archive-settings, .mass-actions { margin-top: 20px; text-align: center; }
         .node-stats { margin-top: 20px; text-align: center; font-weight: bold; }
-        .download-buttons { margin-top: 20px; text-align: center; }
-        .download-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; }
-        .reset-buttons { margin-top: 20px; text-align: center; }
-        .reset-buttons button { margin: 5px; padding: 10px 20px; font-weight: bold; background-color: #f44336; color: #fff; cursor: pointer; border: none; border-radius: 5px; }
+        .download-buttons, .reset-buttons { margin-top: 20px; text-align: center; }
+        .download-buttons button, .reset-buttons button, .mass-actions button { margin: 5px; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        .reset-buttons button { background-color: #f44336; color: #fff; border: none; border-radius: 5px; }
         .reset-buttons button:hover { background-color: #d32f2f; }
-        .archive-settings { margin-top: 20px; text-align: center; }
-        .archive-settings label { font-weight: bold; margin-right: 10px; }
-        .archive-settings select { padding: 5px; margin-right: 10px; }
+        .mass-actions button { background-color: #3f51b5; color: #fff; border: none; border-radius: 5px; }
+        .mass-actions button:hover { background-color: #303f9f; }
     </style>
 </head>
 <body>
@@ -81,6 +79,11 @@
             <option value="86400000">24 години</option>
             <option value="3600000">1 година</option>
         </select>
+        <button onclick="archiveAllNodes()">Архівувати всі вузли</button>
+    </div>
+
+    <div class="mass-actions">
+        <button onclick="resetAllNodes()">Скинути історію всіх вузлів</button>
         <button onclick="archiveAllNodes()">Архівувати всі вузли</button>
     </div>
 
