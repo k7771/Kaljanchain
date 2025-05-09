@@ -18,13 +18,13 @@ function addToHistory(node) {
     history[node.address].push(entry);
 
     // Очищення старих записів, якщо їх більше ніж MAX_HISTORY_ENTRIES
-    if (history[node.address].length > MAX_HISTORY_ENTRIES) {
+    if (history[node.address].length > getMaxHistoryEntries()) {
         history[node.address].shift();
     }
 
     // Оновлення графіка, якщо він відкритий
     if (charts[node.address]) {
-        updateChart(address);
+        updateChart(node.address);
     }
 }
 
@@ -100,18 +100,8 @@ function updateStats(address, nodeHistory) {
     statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок: ${totalErrors} | Мінімум: ${minErrors} | Максимум: ${maxErrors} | Середнє: ${avgErrors}`;
 }
 
-// Завантажує графік у PNG форматі
-function downloadChartAsPNG(address) {
-    const link = document.createElement('a');
-    link.href = charts[address].toBase64Image();
-    link.download = `${address}_history.png`;
-    link.click();
-}
-
-// Завантажує графік у PDF форматі
-function downloadChartAsPDF(address) {
-    const canvas = charts[address].canvas;
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWindow = window.open();
-    pdfWindow.document.write('<iframe src="' + imgData + '" width="100%" height="100%"></iframe>');
+// Повертає максимальну кількість записів в історії
+function getMaxHistoryEntries() {
+    const maxEntries = document.getElementById('maxHistoryEntries').value;
+    return parseInt(maxEntries) || MAX_HISTORY_ENTRIES;
 }
