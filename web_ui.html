@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kaljanchain Node Monitor</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .modal {
             display: none;
@@ -41,6 +42,7 @@
         .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         .history-table th, .history-table td { border: 1px solid #ccc; padding: 8px; text-align: center; }
         .history-table th { background-color: #333; color: #fff; }
+        .chart-container { width: 100%; height: 400px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -86,6 +88,9 @@
                 </thead>
                 <tbody></tbody>
             </table>
+            <div class="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
             <button onclick="exportToCSV()">Експортувати в CSV</button>
         </div>
     </div>
@@ -134,24 +139,13 @@
             document.getElementById('stats').innerText = `Доступні вузли: ${availableCount} | Недоступні вузли: ${unavailableCount} | Всього: ${nodes.length}`;
         }
 
-        function sortTable(columnIndex) {
-            nodes.sort((a, b) => {
-                const aValue = Object.values(a)[columnIndex];
-                const bValue = Object.values(b)[columnIndex];
-                return aValue.localeCompare(bValue);
-            });
-            updateTable();
-        }
-
-        function filterNodes() {
-            updateTable();
-        }
-
         function showHistory(address) {
             currentNode = address;
             const history = getNodeHistory(address);
             const tbody = document.querySelector('#historyTable tbody');
             tbody.innerHTML = '';
+            const labels = [];
+            const data = [];
             history.forEach(entry => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -160,8 +154,11 @@
                     <td>${entry.errorCount}</td>
                 `;
                 tbody.appendChild(row);
+                labels.push(entry.timestamp);
+                data.push(entry.errorCount);
             });
             document.getElementById('historyModal').style.display = 'block';
+            createChart(address, labels, data);
         }
 
         function closeHistory() {
@@ -170,9 +167,9 @@
 
         function exportToCSV() {
             const history = getNodeHistory(currentNode);
-            let csv = 'Статус,Час,Кількість помилок\n';
+            let csv = 'Статус,Час,Кількість помилок\\n';
             history.forEach(entry => {
-                csv += `${entry.status},${entry.timestamp},${entry.errorCount}\n`;
+                csv += `${entry.status},${entry.timestamp},${entry.errorCount}\\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
