@@ -43,6 +43,7 @@
         .history-table th, .history-table td { border: 1px solid #ccc; padding: 8px; text-align: center; }
         .history-table th { background-color: #333; color: #fff; }
         .chart-container { width: 100%; height: 400px; margin-top: 20px; }
+        .range-select { margin-top: 20px; text-align: center; }
     </style>
 </head>
 <body>
@@ -78,6 +79,17 @@
         <div class="modal-content">
             <span class="close" onclick="closeHistory()">&times;</span>
             <h2>Історія вузла</h2>
+            <div class="range-select">
+                <label for="timeRange">Вибрати діапазон:</label>
+                <select id="timeRange" onchange="updateChart(currentNode)">
+                    <option value="1h">1 година</option>
+                    <option value="6h">6 годин</option>
+                    <option value="12h">12 годин</option>
+                    <option value="24h" selected>24 години</option>
+                    <option value="7d">7 днів</option>
+                    <option value="30d">30 днів</option>
+                </select>
+            </div>
             <table id="historyTable" class="history-table">
                 <thead>
                     <tr>
@@ -141,7 +153,7 @@
 
         function showHistory(address) {
             currentNode = address;
-            const history = getNodeHistory(address);
+            const history = getNodeHistory(address, getSelectedRange());
             const tbody = document.querySelector('#historyTable tbody');
             tbody.innerHTML = '';
             const labels = [];
@@ -158,26 +170,12 @@
                 data.push(entry.errorCount);
             });
             document.getElementById('historyModal').style.display = 'block';
-            createChart(address, labels, data);
+            createChart(address);
+            updateChart(address);
         }
 
         function closeHistory() {
             document.getElementById('historyModal').style.display = 'none';
-        }
-
-        function exportToCSV() {
-            const history = getNodeHistory(currentNode);
-            let csv = 'Статус,Час,Кількість помилок\\n';
-            history.forEach(entry => {
-                csv += `${entry.status},${entry.timestamp},${entry.errorCount}\\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentNode}_history.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
         }
     </script>
 </body>
