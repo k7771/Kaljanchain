@@ -43,6 +43,9 @@ function updateChart(address) {
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
     chart.update();
+
+    // Оновлення статистики
+    updateStats(address, nodeHistory);
 }
 
 // Створює новий графік для вузла
@@ -82,4 +85,11 @@ function getSelectedRange() {
         case '30d': return 2592000000;
         default: return 86400000;
     }
+}
+
+// Оновлює підсумкову статистику для вузла
+function updateStats(address, nodeHistory) {
+    const totalErrors = nodeHistory.reduce((sum, entry) => sum + entry.errorCount, 0);
+    const statsElement = document.getElementById('stats');
+    statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок за вибраний період: ${totalErrors}`;
 }
