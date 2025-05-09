@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaljanchain Node Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
+        h1 { color: #333; text-align: center; }
+        table { width: 80%; margin: 20px auto; border-collapse: collapse; }
+        th, td { padding: 12px; border: 1px solid #ccc; text-align: center; }
+        th { background-color: #333; color: #fff; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:nth-child(odd) { background-color: #fff; }
+        .online { color: green; font-weight: bold; }
+        .offline { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Kaljanchain Node Monitor</h1>
+    <table id="nodes">
+        <thead>
+            <tr>
+                <th>Адреса</th>
+                <th>Статус</th>
+                <th>Остання перевірка</th>
+                <th>Кількість помилок</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8081/ws');
+
+        ws.onmessage = function(event) {
+            const nodes = JSON.parse(event.data);
+            const tbody = document.querySelector('#nodes tbody');
+            tbody.innerHTML = '';
+            nodes.forEach(node => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${node.address}</td>
+                    <td class="${node.status === 'доступний' ? 'online' : 'offline'}">${node.status}</td>
+                    <td>${node.last_check}</td>
+                    <td>${node.error_count}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        };
+    </script>
+</body>
+</html>
