@@ -97,11 +97,11 @@ impl Node {
                 }
             },
             Message::Transaction(tx) => {
-                if tx.is_valid(public_key) {
+                if tx.is_valid(public_key) && self.has_sufficient_balance(&tx) {
                     println!("Отримано дійсну транзакцію: {} -> {}: {}", tx.sender, tx.recipient, tx.amount);
                     self.mempool.lock().unwrap().push(tx);
                 } else {
-                    println!("Невалідна транзакція від {}", tx.sender);
+                    println!("Невалідна або недостатній баланс для транзакції від {}", tx.sender);
                 }
             },
             Message::SyncRequest => {
@@ -125,6 +125,15 @@ impl Node {
                 mempool.extend(transactions);
             },
         }
+    }
+
+    // Перевірка балансу відправника
+    pub fn has_sufficient_balance(&self, tx: &Transaction) -> bool {
+        let balances = self.balances.lock().unwrap();
+        if let Some(balance) = balances.get(&tx.sender) {
+            return *balance >= tx.amount;
+        }
+        false
     }
 
     // Відправка mempool іншому вузлу
