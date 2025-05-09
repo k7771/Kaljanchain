@@ -10,6 +10,9 @@ use std::time::{Duration, Instant};
 use kaljanchain_core::{Blockchain, Block};
 use kaljanchain_transactions::Transaction;
 use ed25519_dalek::{PublicKey, Signature, Verifier};
+use rand::rngs::OsRng;
+use ed25519_dalek::Keypair;
+use std::thread::sleep;
 
 // === Основна структура повідомлення ===
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,6 +23,14 @@ pub enum Message {
     SyncResponse(Vec<Block>),
     MempoolRequest,
     MempoolResponse(Vec<Transaction>),
+    BalanceRequest(String),
+    BalanceResponse(String, f64),
+    TransactionConfirmation(Transaction),
+    DoubleSpendAlert(Transaction),
+    BalanceRollback(String, f64),
+    NodeCheck(String),
+    NodeCheckResponse(String, bool),
+    NodeRemove(String),
 }
 
 // === Основна структура вузла ===
@@ -54,6 +65,12 @@ impl Node {
         let listener = TcpListener::bind(&self.address).expect("Не вдалося запустити вузол");
         println!("Вузол запущено на {}", self.address);
 
+        // Старт автоматичної перевірки вузлів
+        let self_clone = self.clone();
+        thread::spawn(move || {
+            self_clone.start_node_health_check();
+        });
+
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
@@ -85,49 +102,65 @@ impl Node {
         *last_sync = Instant::now(); // оновлюємо час останньої синхронізації
     }
 
-    // Обробка вхідних повідомлень
-    pub fn handle_message(&self, message: Message, public_key: &PublicKey) {
-        match message {
-            Message::Block(block) => {
-                let mut blockchain = self.blockchain.lock().unwrap();
-                if blockchain.add_block(block.data.clone()) {
-                    println!("Новий блок додано: {}", block.hash);
-                } else {
-                    println!("Невалідний блок: {}", block.hash);
-                }
-            },
-            Message::Transaction(tx) => {
-                if tx.is_valid(public_key) && self.has_sufficient_balance(&tx) {
-                    println!("Отримано дійсну транзакцію: {} -> {}: {}", tx.sender, tx.recipient, tx.amount);
-                    self.mempool.lock().unwrap().push(tx);
-                } else {
-                    println!("Невалідна або недостатній баланс для транзакції від {}", tx.sender);
-                }
-            },
-            Message::SyncRequest => {
-                self.sync_blocks(&self.address);
-            },
-            Message::SyncResponse(blocks) => {
-                println!("Отримано синхронізовані блоки: {}", blocks.len());
-                let mut blockchain = self.blockchain.lock().unwrap();
-                for block in blocks {
-                    if blockchain.add_block(block.data.clone()) {
-                        println!("Блок синхронізовано: {}", block.hash);
-                    }
-                }
-            },
-            Message::MempoolRequest => {
-                self.send_mempool(&self.address);
-            },
-            Message::MempoolResponse(transactions) => {
-                println!("Отримано синхронізовані транзакції: {}", transactions.len());
-                let mut mempool = self.mempool.lock().unwrap();
-                mempool.extend(transactions);
-            },
+    // Майнінг блоку з транзакціями
+    pub fn mine_block(&self, miner_address: &str, keypair: &Keypair) {
+        let mut mempool = self.mempool.lock().unwrap();
+        if mempool.is_empty() {
+            println!("Mempool порожній. Немає транзакцій для майнінгу.");
+            return;
+        }
+
+        // Вибір транзакцій для блоку
+        let valid_transactions: Vec<Transaction> = mempool.iter()
+            .filter(|tx| self.has_sufficient_balance(tx))
+            .cloned()
+            .collect();
+
+        if valid_transactions.is_empty() {
+            println!("Немає дійсних транзакцій для майнінгу.");
+            return;
+        }
+
+        // Додавання винагороди за майнінг
+        let reward_tx = Transaction::new(
+            String::from("Kaljanchain"),
+            String::from(miner_address),
+            self.mining_reward,
+            keypair
+        );
+        let mut all_transactions = valid_transactions.clone();
+        all_transactions.push(reward_tx.clone());
+
+        // Додавання блоку
+        let mut blockchain = self.blockchain.lock().unwrap();
+        let block_data = serde_json::to_string(&all_transactions).unwrap();
+        let block = Block::new(
+            blockchain.blocks.len() as u64,
+            blockchain.blocks.last().unwrap().hash.clone(),
+            block_data
+        );
+        blockchain.blocks.push(block.clone());
+
+        // Оновлення балансу майнера
+        self.update_balances(miner_address, self.mining_reward);
+
+        println!("Новий блок змайнено: {}", block.hash);
+
+        // Підтвердження транзакцій
+        for tx in all_transactions {
+            self.broadcast(&Message::TransactionConfirmation(tx));
         }
     }
 
-    // Перевірка балансу відправника
+    // Оновлення балансів після майнінгу
+    pub fn update_balances(&self, miner_address: &str, reward: f64) {
+        let mut balances = self.balances.lock().unwrap();
+        let balance = balances.entry(miner_address.to_string()).or_insert(0.0);
+        *balance += reward;
+        println!("Баланс оновлено: {} -> {}", miner_address, balance);
+    }
+
+    // Перевірка балансу для транзакцій
     pub fn has_sufficient_balance(&self, tx: &Transaction) -> bool {
         let balances = self.balances.lock().unwrap();
         if let Some(balance) = balances.get(&tx.sender) {
@@ -135,28 +168,16 @@ impl Node {
         }
         false
     }
-
-    // Відправка mempool іншому вузлу
-    pub fn send_mempool(&self, address: &str) {
-        let mempool = self.mempool.lock().unwrap();
-        let message = Message::MempoolResponse(mempool.clone());
-        let serialized = serde_json::to_string(&message).unwrap();
-        self.send_message(address, &serialized);
-    }
-
-    // Відправка повідомлення конкретному вузлу
-    pub fn send_message(&self, address: &str, message: &str) {
-        if let Ok(mut stream) = TcpStream::connect(address) {
-            if let Err(e) = stream.write_all(message.as_bytes()) {
-                println!("Помилка при відправці даних на {}: {}", address, e);
-            }
-        }
-    }
 }
 
-// Тестування автоматичного підключення вузлів та синхронізації
+// Тестування автоматичного підключення вузлів, майнінгу та синхронізації
 fn main() {
     let blockchain = Arc::new(Mutex::new(Blockchain::new(4)));
     let node = Node::new(String::from("127.0.0.1:8080"), blockchain.clone(), 50.0, 100);
+
+    // Генерація ключів для майнінгу
+    let mut csprng = OsRng;
+    let keypair = Keypair::generate(&mut csprng);
+    node.mine_block("Miner1", &keypair);
     node.start();
 }
