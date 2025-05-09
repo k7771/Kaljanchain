@@ -90,6 +90,10 @@ function getSelectedRange() {
 // Оновлює підсумкову статистику для вузла
 function updateStats(address, nodeHistory) {
     const totalErrors = nodeHistory.reduce((sum, entry) => sum + entry.errorCount, 0);
-    const statsElement = document.getElementById('stats');
-    statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок за вибраний період: ${totalErrors}`;
+    const minErrors = Math.min(...nodeHistory.map(entry => entry.errorCount));
+    const maxErrors = Math.max(...nodeHistory.map(entry => entry.errorCount));
+    const avgErrors = (totalErrors / nodeHistory.length).toFixed(2);
+
+    const statsElement = document.getElementById('nodeStats');
+    statsElement.innerText = `Вузол: ${address} | Загальна кількість помилок: ${totalErrors} | Мінімум: ${minErrors} | Максимум: ${maxErrors} | Середнє: ${avgErrors}`;
 }
