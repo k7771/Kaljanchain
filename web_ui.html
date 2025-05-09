@@ -9,11 +9,12 @@
         h1 { color: #333; text-align: center; }
         table { width: 80%; margin: 20px auto; border-collapse: collapse; }
         th, td { padding: 12px; border: 1px solid #ccc; text-align: center; }
-        th { background-color: #333; color: #fff; }
+        th { background-color: #333; color: #fff; cursor: pointer; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:nth-child(odd) { background-color: #fff; }
         .online { color: green; font-weight: bold; }
         .offline { color: red; font-weight: bold; }
+        .error { color: #a00; font-weight: bold; text-align: center; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -21,15 +22,17 @@
     <table id="nodes">
         <thead>
             <tr>
-                <th>Адреса</th>
-                <th>Статус</th>
-                <th>Остання перевірка</th>
-                <th>Кількість помилок</th>
+                <th onclick="sortTable(0)">Адреса</th>
+                <th onclick="sortTable(1)">Статус</th>
+                <th onclick="sortTable(2)">Остання перевірка</th>
+                <th onclick="sortTable(3)">Кількість помилок</th>
             </tr>
         </thead>
         <tbody>
         </tbody>
     </table>
+
+    <div id="error" class="error" style="display: none;">Помилка підключення до сервера!</div>
 
     <script>
         const ws = new WebSocket('ws://localhost:8081/ws');
@@ -48,7 +51,19 @@
                 `;
                 tbody.appendChild(row);
             });
+            document.getElementById('error').style.display = 'none';
         };
+
+        ws.onclose = function() {
+            document.getElementById('error').style.display = 'block';
+        };
+
+        function sortTable(columnIndex) {
+            const table = document.getElementById('nodes');
+            const rows = Array.from(table.rows).slice(1);
+            rows.sort((a, b) => a.cells[columnIndex].innerText.localeCompare(b.cells[columnIndex].innerText));
+            rows.forEach(row => table.tBodies[0].appendChild(row));
+        }
     </script>
 </body>
 </html>
