@@ -1,4 +1,4 @@
-// Kaljanchain API - Enhanced HTTP API with Block Details and Node Status (Rust)
+// Kaljanchain API - Enhanced HTTP API with Node Status and Statistics (Rust)
 
 use std::sync::{Arc, Mutex}; use kaljanchain_core::{Blockchain, Block}; use kaljanchain_transactions::Transaction; use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier}; use rand::rngs::OsRng; use warp::Filter; use serde::{Serialize, Deserialize}; use std::collections::HashMap; use base64;
 
@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex}; use kaljanchain_core::{Blockchain, Block}; use kalj
 
 // === Структура для детальної інформації про блок === #[derive(Serialize, Deserialize, Debug, Clone)] struct BlockDetails { block: Block, transactions: Vec<Transaction>, }
 
-// Ініціалізація HTTP API async fn start_api(blockchain: Arc<Mutex<Blockchain>>, mempool: Arc<Mutex<Vec<Transaction>>>, balances: Arc<Mutex<HashMap<String, f64>>>) { let blockchain_filter = warp::any().map(move || blockchain.clone()); let mempool_filter = warp::any().map(move || mempool.clone()); let balances_filter = warp::any().map(move || balances.clone());
+// === Структура для статистики вузла === #[derive(Serialize, Deserialize, Debug, Clone)] struct NodeStats { block_count: usize, transaction_count: usize, mempool_size: usize, active_peers: usize, total_balance: f64, }
+
+// Ініціалізація HTTP API async fn start_api(blockchain: Arc<Mutex<Blockchain>>, mempool: Arc<Mutex<Vec<Transaction>>>, balances: Arc<Mutex<HashMap<String, f64>>>, peers: Arc<Mutex<HashMap<String, String>>>) { let blockchain_filter = warp::any().map(move || blockchain.clone()); let mempool_filter = warp::any().map(move || mempool.clone()); let balances_filter = warp::any().map(move || balances.clone()); let peers_filter = warp::any().map(move || peers.clone());
 
 // Ендпоінт для перевірки стану блокчейну
 let blockchain_status = warp::path("status")
@@ -61,49 +63,34 @@ let create_transaction = warp::path("transaction")
         })
     });
 
-// Ендпоінт для перегляду історії транзакцій
-let transaction_history = warp::path("history")
+// Ендпоінт для перегляду статистики вузла
+let node_stats = warp::path("stats")
     .and(warp::get())
-    .and(warp::query::<HashMap<String, String>>())
     .and(blockchain_filter.clone())
-    .map(|params: HashMap<String, String>, blockchain: Arc<Mutex<Blockchain>>| {
-        let address = params.get("address").unwrap_or(&String::from("unknown")).clone();
+    .and(mempool_filter.clone())
+    .and(balances_filter.clone())
+    .and(peers_filter.clone())
+    .map(|blockchain: Arc<Mutex<Blockchain>>, mempool: Arc<Mutex<Vec<Transaction>>>, balances: Arc<Mutex<HashMap<String, f64>>>, peers: Arc<Mutex<HashMap<String, String>>>| {
         let blockchain = blockchain.lock().unwrap();
-        let mut history = vec![];
-        for block in &blockchain.blocks {
-            let transactions: Vec<Transaction> = serde_json::from_str(&block.data).unwrap_or(vec![]);
-            for tx in transactions {
-                if tx.sender == address || tx.recipient == address {
-                    history.push(tx);
-                }
-            }
-        }
-        warp::reply::json(&TransactionHistory { transactions: history })
-    });
-
-// Ендпоінт для перегляду деталей блоку
-let block_details = warp::path("block")
-    .and(warp::get())
-    .and(warp::query::<HashMap<String, String>>())
-    .and(blockchain_filter.clone())
-    .map(|params: HashMap<String, String>, blockchain: Arc<Mutex<Blockchain>>| {
-        let index = params.get("index").and_then(|i| i.parse::<usize>().ok()).unwrap_or(0);
-        let blockchain = blockchain.lock().unwrap();
-        if let Some(block) = blockchain.blocks.get(index) {
-            let transactions: Vec<Transaction> = serde_json::from_str(&block.data).unwrap_or(vec![]);
-            warp::reply::json(&BlockDetails { block: block.clone(), transactions })
-        } else {
-            warp::reply::json(&ApiResponse {
-                status: String::from("error"),
-                message: String::from("Блок не знайдено"),
-            })
-        }
+        let mempool = mempool.lock().unwrap();
+        let balances = balances.lock().unwrap();
+        let peers = peers.lock().unwrap();
+        let total_balance: f64 = balances.values().sum();
+        let transaction_count: usize = blockchain.blocks.iter().map(|b| serde_json::from_str::<Vec<Transaction>>(&b.data).unwrap_or(vec![]).len()).sum();
+        warp::reply::json(&NodeStats {
+            block_count: blockchain.blocks.len(),
+            transaction_count,
+            mempool_size: mempool.len(),
+            active_peers: peers.len(),
+            total_balance,
+        })
     });
 
 // Запуск сервера
-let routes = blockchain_status.or(check_balance).or(create_transaction).or(transaction_history).or(block_details);
+let routes = blockchain_status.or(check_balance).or(create_transaction).or(node_stats);
 warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 
 }
 
-// Тестування API #[tokio::main] async fn main() { let blockchain = Arc::new(Mutex::new(Blockchain::new(4))); let mempool = Arc::new(Mutex::new(vec![])); let balances = Arc::new(Mutex::new(HashMap::new())); println!("Kaljanchain API запущено на http://127.0.0.1:8080"); start_api(blockchain, mempool, balances).await; }
+// Тестування API #[tokio::main] async fn main() { let blockchain = Arc::new(Mutex::new(Blockchain::new(4))); let mempool = Arc::new(Mutex::new(vec![])); let balances = Arc::new(Mutex::new(HashMap::new())); let peers = Arc::new(Mutex::new(HashMap::new())); println!("Kaljanchain API запущено на http://127.0.0.1:8080"); start_api(blockchain, mempool, balances, peers).await; }
+
