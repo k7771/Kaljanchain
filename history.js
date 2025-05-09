@@ -12,7 +12,8 @@ function addToHistory(node) {
     const entry = {
         status: node.status,
         timestamp: timestamp,
-        errorCount: node.error_count
+        errorCount: node.error_count,
+        time: Date.now()
     };
     history[node.address].push(entry);
 
@@ -27,16 +28,17 @@ function addToHistory(node) {
     }
 }
 
-// Повертає історію вузла
-function getNodeHistory(address) {
-    return history[address] || [];
+// Повертає історію вузла з фільтрацією за часом
+function getNodeHistory(address, range = 86400000) { // за замовчуванням 24 години
+    const cutoff = Date.now() - range;
+    return (history[address] || []).filter(entry => entry.time >= cutoff);
 }
 
 // Оновлює графік для вузла
 function updateChart(address) {
     const chart = charts[address];
-    const nodeHistory = getNodeHistory(address);
-    const labels = nodeHistory.map(entry => entry.timestamp);
+    const nodeHistory = getNodeHistory(address, getSelectedRange());
+    const labels = nodeHistory.map(entry => new Date(entry.time).toLocaleString());
     const data = nodeHistory.map(entry => entry.errorCount);
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
@@ -44,15 +46,15 @@ function updateChart(address) {
 }
 
 // Створює новий графік для вузла
-function createChart(address, labels, data) {
+function createChart(address) {
     const ctx = document.getElementById('historyChart').getContext('2d');
     charts[address] = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels: [],
             datasets: [{
                 label: 'Кількість помилок',
-                data: data,
+                data: [],
                 borderColor: 'red',
                 fill: false
             }]
@@ -65,4 +67,19 @@ function createChart(address, labels, data) {
             }
         }
     });
+    updateChart(address);
+}
+
+// Повертає вибраний діапазон часу
+function getSelectedRange() {
+    const range = document.getElementById('timeRange').value;
+    switch (range) {
+        case '1h': return 3600000;
+        case '6h': return 21600000;
+        case '12h': return 43200000;
+        case '24h': return 86400000;
+        case '7d': return 604800000;
+        case '30d': return 2592000000;
+        default: return 86400000;
+    }
 }
