@@ -26,6 +26,7 @@ function addToHistory(node) {
     // Видалення вузлів з нульовою активністю
     if (history[node.address].length === 0) {
         delete history[node.address];
+        removeNodeFromTable(node.address);
     }
 
     // Оновлення графіка, якщо він відкритий
@@ -45,10 +46,20 @@ function cleanupInactiveNodes() {
         if (lastActivity < cutoff) {
             archiveNodeHistory(address);
             delete history[address];
-            console.log(`Вузол ${address} видалений через неактивність.`);
+            removeNodeFromTable(address);
             showNotification(`Вузол ${address} видалений через неактивність.`);
         }
     }
+}
+
+// Видаляє вузол з таблиці
+function removeNodeFromTable(address) {
+    const rows = document.querySelectorAll('#nodes tbody tr');
+    rows.forEach(row => {
+        if (row.cells[0].textContent.trim() === address) {
+            row.remove();
+        }
+    });
 }
 
 // Архівує історію вузла перед видаленням
@@ -64,7 +75,6 @@ function archiveNodeHistory(address) {
     a.download = `${address}_history_backup.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    console.log(`Історія вузла ${address} архівована.`);
     showNotification(`Історія вузла ${address} архівована.`);
 }
 
@@ -73,6 +83,7 @@ function archiveAllNodes() {
     for (const address in history) {
         archiveNodeHistory(address);
         delete history[address];
+        removeNodeFromTable(address);
     }
     createBackupArchive();
     showNotification("Історії всіх вузлів успішно архівовані та очищені.");
@@ -100,6 +111,7 @@ function createBackupArchive() {
 function resetAllNodes() {
     for (const address in history) {
         resetNodeHistory(address);
+        removeNodeFromTable(address);
     }
     showNotification("Історії всіх вузлів успішно очищені.");
 }
@@ -121,28 +133,6 @@ function updateNodeStatusIndicators() {
             statusCell.classList.remove('available', 'unavailable');
         }
     });
-}
-
-// Повертає історію вузла з фільтрацією за часом
-function getNodeHistory(address, range = 86400000) { // за замовчуванням 24 години
-    const cutoff = Date.now() - range;
-    return (history[address] || []).filter(entry => entry.time >= cutoff);
-}
-
-// Оновлює графік для вузла
-function updateChart(address) {
-    const chart = charts[address];
-    const nodeHistory = getNodeHistory(address, getSelectedRange());
-    const labels = nodeHistory.map(entry => new Date(entry.time).toLocaleString());
-    const data = nodeHistory.map(entry => entry.errorCount);
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = data;
-    chart.options.scales.y.suggestedMin = Math.min(...data) - 1;
-    chart.options.scales.y.suggestedMax = Math.max(...data) + 1;
-    chart.update();
-
-    // Оновлення статистики
-    updateStats(address, nodeHistory);
 }
 
 // Повертає максимальну кількість записів в історії
