@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // === Основні структури блокчейну ===
@@ -30,18 +31,38 @@ type Block struct {
 }
 
 type Node struct {
-	Address string
-	Active  bool
+	Address  string
+	Active   bool
 	LastSeen time.Time
+	Location string
+}
+
+type Wallet struct {
+	Address  string
+	Balance  int
+	Tokens   map[string]int
+	2FA      bool
+	DeviceID string
+	Multisig []string
+	Location string
+	Context  map[string]string
 }
 
 type Blockchain struct {
-	Blocks      []Block
-	Nodes       map[string]Node
-	Mutex       sync.Mutex
-	Difficulty  int
-	Tokens      map[string]int
+	Blocks        []Block
+	Nodes         map[string]Node
+	Wallets       map[string]Wallet
+	Mutex         sync.Mutex
+	Difficulty    int
+	Tokens        map[string]int
 	SmartContracts map[string]string
+	Logs          []string
+	Alerts        []string
+	Analytics     map[string]int
+	ScaleFactor   int
+	BannedIPs     map[string]bool
+	Geolocations  map[string]string
+	Contexts      map[string]map[string]string
 }
 
 // === Функції ядра ===
@@ -60,6 +81,9 @@ func (bc *Blockchain) AddBlock(data, minerAddress string) Block {
 	}
 	newBlock.Hash = bc.MineBlock(&newBlock)
 	bc.Blocks = append(bc.Blocks, newBlock)
+	bc.Logs = append(bc.Logs, fmt.Sprintf("Block %d mined by %s", newBlock.Index, minerAddress))
+	bc.Analytics[minerAddress]++
+	bc.ScaleFactor++
 	return newBlock
 }
 
@@ -93,9 +117,17 @@ func NewBlockchain() *Blockchain {
 	bc := &Blockchain{
 		Blocks:     []Block{genesisBlock},
 		Nodes:      make(map[string]Node),
+		Wallets:    make(map[string]Wallet),
 		Difficulty: 4,
 		Tokens:     make(map[string]int),
 		SmartContracts: make(map[string]string),
+		Logs:       []string{"Genesis Block Created"},
+		Alerts:     []string{},
+		Analytics:  make(map[string]int),
+		ScaleFactor: 1,
+		BannedIPs:  make(map[string]bool),
+		Geolocations: make(map[string]string),
+		Contexts:    make(map[string]map[string]string),
 	}
 	return bc
 }
@@ -114,6 +146,13 @@ func main() {
 	bc.SmartContracts["SampleContract"] = "function transfer() { return 'Success'; }"
 	fmt.Println("Смарт-контракт SampleContract створено")
 
+	// Додавання гаманця
+	bc.Wallets["Wallet-123"] = Wallet{Address: "Wallet-123", Balance: 1000, Tokens: map[string]int{"KaljanCoin": 1000}, 2FA: true, DeviceID: "Device-123", Multisig: []string{"User1", "User2"}, Location: "Ukraine", Context: map[string]string{"device_type": "mobile", "ip": "192.168.1.100"}}
+	fmt.Println("Гаманець Wallet-123 створено")
+
+	// Додавання геолокації
+	bc.Geolocations["Wallet-123"] = "Ukraine"
+
 	// Запуск HTTP API
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -126,8 +165,18 @@ func main() {
 	})
 	http.HandleFunc("/add-node", func(w http.ResponseWriter, r *http.Request) {
 		address := r.URL.Query().Get("address")
-		bc.ConnectNode(address)
+		location := r.URL.Query().Get("location")
+		bc.ConnectNode(address, location)
 		w.Write([]byte("Node added: " + address))
+	})
+	http.HandleFunc("/wallets", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(bc.Wallets)
+	})
+	http.HandleFunc("/ban-ip", func(w http.ResponseWriter, r *http.Request) {
+		ip := r.URL.Query().Get("ip")
+		bc.BannedIPs[ip] = true
+		w.Write([]byte("IP Banned: " + ip))
 	})
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -159,10 +208,10 @@ func (bc *Blockchain) CreateDigitalAsset(assetName string) Block {
 }
 
 // Мережевий модуль (P2P)
-func (bc *Blockchain) ConnectNode(address string) {
+func (bc *Blockchain) ConnectNode(address, location string) {
 	bc.Mutex.Lock()
 	defer bc.Mutex.Unlock()
-	bc.Nodes[address] = Node{Address: address, Active: true, LastSeen: time.Now()}
+	bc.Nodes[address] = Node{Address: address, Active: true, LastSeen: time.Now(), Location: location}
 }
 
 // Збереження стану блокчейну
