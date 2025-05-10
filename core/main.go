@@ -11,6 +11,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math/rand"
+	"encoding/json"
+	"io/ioutil"
+	"log"
+	"net/http"
 )
 
 // === Основні структури блокчейну ===
@@ -36,6 +40,8 @@ type Blockchain struct {
 	Nodes       map[string]Node
 	Mutex       sync.Mutex
 	Difficulty  int
+	Tokens      map[string]int
+	SmartContracts map[string]string
 }
 
 // === Функції ядра ===
@@ -88,6 +94,8 @@ func NewBlockchain() *Blockchain {
 		Blocks:     []Block{genesisBlock},
 		Nodes:      make(map[string]Node),
 		Difficulty: 4,
+		Tokens:     make(map[string]int),
+		SmartContracts: make(map[string]string),
 	}
 	return bc
 }
@@ -98,7 +106,73 @@ func main() {
 	fmt.Println("Kaljanchain Node запущено...")
 	fmt.Printf("Genesis Block: %v\n", bc.Blocks[0])
 	
-	// Тестове додавання блоку
-	newBlock := bc.AddBlock("Test Transaction", "Miner-123")
-	fmt.Printf("New Block: %v\n", newBlock)
+	// Токени
+	bc.Tokens["KaljanCoin"] = 1000000
+	fmt.Println("Токен KaljanCoin створено з початковим обсягом 1,000,000")
+
+	// Смарт-контракти
+	bc.SmartContracts["SampleContract"] = "function transfer() { return 'Success'; }"
+	fmt.Println("Смарт-контракт SampleContract створено")
+
+	// Запуск HTTP API
+	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(bc)
+	})
+	http.HandleFunc("/mine", func(w http.ResponseWriter, r *http.Request) {
+		miner := r.URL.Query().Get("miner")
+		newBlock := bc.AddBlock("Mining Reward", miner)
+		json.NewEncoder(w).Encode(newBlock)
+	})
+	http.HandleFunc("/add-node", func(w http.ResponseWriter, r *http.Request) {
+		address := r.URL.Query().Get("address")
+		bc.ConnectNode(address)
+		w.Write([]byte("Node added: " + address))
+	})
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// === Додаткові модулі ===
+
+// Майнінг модуль
+func (bc *Blockchain) StartMining(minerAddress string) {
+	for {
+		bc.AddBlock("Mining Reward", minerAddress)
+		time.Sleep(time.Second * 5)
+	}
+}
+
+// Модуль смарт-контрактів
+func (bc *Blockchain) ExecuteSmartContract(data string) Block {
+	return bc.AddBlock(data, "SmartContract-Execution")
+}
+
+// Модуль безпеки (2FA, U2F, WebAuthn)
+func SecureAccess(node *Node, key string) bool {
+	// Placeholder for 2FA, U2F, WebAuthn implementation
+	return key == "secure-access"
+}
+
+// Модуль цифрових активів
+func (bc *Blockchain) CreateDigitalAsset(assetName string) Block {
+	return bc.AddBlock(assetName, "Asset-Creation")
+}
+
+// Мережевий модуль (P2P)
+func (bc *Blockchain) ConnectNode(address string) {
+	bc.Mutex.Lock()
+	defer bc.Mutex.Unlock()
+	bc.Nodes[address] = Node{Address: address, Active: true, LastSeen: time.Now()}
+}
+
+// Збереження стану блокчейну
+func saveBlockchain(bc *Blockchain) {
+	data, err := json.MarshalIndent(bc, "", "  ")
+	if err != nil {
+		log.Fatalf("Помилка збереження стану блокчейну: %v", err)
+	}
+	err = ioutil.WriteFile("blockchain_state.json", data, 0644)
+	if err != nil {
+		log.Fatalf("Помилка запису стану блокчейну у файл: %v", err)
+	}
 }
